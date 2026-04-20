@@ -1,13 +1,16 @@
 import Logo from '../assets/picker.svg'
 import LogoDark from '../assets/picker-dark.svg'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from '../hooks/useTheme'
 import { ListIcon } from 'lucide-react'
 import { useState, useEffect } from 'react'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function NavBar(){
     const { isDark, toggle } = useTheme()
+    const { user, signOut } = useAuth()
+    const navigate = useNavigate()
     const [isOpen, setNav] = useState<"Open" | "Close">("Close");
 
     // Close menu on Escape key
@@ -26,6 +29,12 @@ export default function NavBar(){
 
     const closeMenu = () => setNav("Close");
 
+    const handleLogout = async () => {
+        await signOut();
+        closeMenu();
+        navigate('/login');
+    };
+
     return (
         <>
         <div className="hidden md:flex w-[95vw] h-auto items-center border-b border-black dark:border-white px-3 py-4 justify-between">
@@ -43,6 +52,30 @@ export default function NavBar(){
                 <div className="px-2 py-1 group hover:bg-black dark:hover:bg-white transition-all duration-300">
                     <Link to="/previousexams" className="text-sm font-bold group-hover:text-white dark:group-hover:text-black transition-all duration-300">PREVIOUS EXAMS</Link>
                 </div>
+
+                {user ? (
+                    <div className="flex items-center gap-4">
+                        <Link to="/mockexam" className="text-sm font-bold text-black dark:text-white hover:underline">
+                            {user.email}
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={async () => { await signOut(); navigate('/login'); }}
+                            className="text-sm font-bold text-red-600 dark:text-red-400 hover:underline"
+                        >
+                            Logout
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex items-center gap-3">
+                        <Link to="/login" className="px-3 py-1 rounded-lg bg-black dark:bg-white text-white dark:text-black text-sm font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all duration-300">
+                            Login
+                        </Link>
+                        <Link to="/login" className="text-sm font-bold text-black dark:text-white hover:underline">
+                            Sign up
+                        </Link>
+                    </div>
+                )}
 
                 <button
                     type="button"
@@ -83,6 +116,29 @@ export default function NavBar(){
                 <div className="px-2 py-1 group hover:bg-black dark:hover:bg-white transition-all duration-300">
                     <Link to="/previousexams" onClick={closeMenu} className="text-xl font-bold group-hover:text-white dark:group-hover:text-black transition-all duration-300">PREVIOUS EXAMS</Link>
                 </div>
+
+                {user ? (
+                    <div className="flex flex-col items-center gap-3">
+                        <span className="text-xl font-bold text-black dark:text-white">{user.email}</span>
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="text-xl font-bold text-red-600 dark:text-red-400 hover:underline"
+                        >
+                            Logout
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex flex-col items-center gap-3">
+                        <Link to="/login" onClick={closeMenu} className="px-4 py-2 rounded-lg bg-black dark:bg-white text-white dark:text-black text-xl font-bold hover:bg-zinc-800 dark:hover:bg-zinc-200 transition-all duration-300">
+                            Login
+                        </Link>
+                        <Link to="/login" onClick={closeMenu} className="text-xl font-bold text-black dark:text-white hover:underline">
+                            Sign up
+                        </Link>
+                    </div>
+                )}
+
                 <button
                     type="button"
                     onClick={toggle}
