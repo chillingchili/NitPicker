@@ -6,7 +6,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { formatClockFromSeconds, loadMockExamResult, safeSave, safeLoad } from "../exam/mockExamModel";
+import { formatClockFromSeconds, loadMockExamResult, safeLoad } from "../exam/mockExamModel";
 import Layout from "../components/Layout";
 import { normalizeLegacySymbols, normalizeMathDelimiters } from "../lib/textFormat";
 import { trackEvent } from "../lib/analytics";
@@ -84,21 +84,21 @@ export default function MockExamResultsPage() {
   const [result] = useState(() => loadMockExamResult());
 
   const SR_SUMMARY_KEY = 'ofa.sr.latestSummary';
-  const [srSummary, setSrSummary] = useState<Array<{
-    topic: string;
-    previousInterval: number;
-    newInterval: number;
-    nextReviewDate: string;
-    easinessFactor: number;
-    repetitions: number;
-  }> | null>(() => {
-    const loaded = safeLoad(SR_SUMMARY_KEY);
+  const srSummary = (() => {
+    const loaded = safeLoad<Array<{
+      topic: string;
+      previousInterval: number;
+      newInterval: number;
+      nextReviewDate: string;
+      easinessFactor: number;
+      repetitions: number;
+    }>>(SR_SUMMARY_KEY);
     if (loaded && Array.isArray(loaded)) {
       try { localStorage.removeItem(SR_SUMMARY_KEY); } catch {}
       return loaded;
     }
     return null;
-  });
+  })();
 
   const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
 

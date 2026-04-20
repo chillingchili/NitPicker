@@ -179,18 +179,6 @@ export const safeSave = (key: string, value: unknown) => {
   }
 };
 
-const safeLoad = <T>(key: string): T | null => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) {
-      return null;
-    }
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-};
-
 const isMockExamSession = (value: unknown): value is MockExamSession => {
   if (!value || typeof value !== "object") {
     return false;
@@ -288,6 +276,18 @@ const topicOrderMap = new Map<string, number>(allTopics.map((topic, index) => [t
 
 import { supabase } from "../lib/supabase";
 
+export const safeLoad = <T>(key: string): T | null => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) {
+      return null;
+    }
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+};
+
 export const saveExamSession = async (
   userId: string,
   session: MockExamSession,
@@ -313,6 +313,7 @@ export const saveExamSession = async (
 };
 
 export const computeMockExamResult = (
+  session: MockExamSession,
   answers: Record<string, string>,
   totalTimeSeconds: number,
   hintsUsed: number,
@@ -532,8 +533,6 @@ export function buildQuestionPerformances(
 }
 
 // ─── Supabase Persistence ─────────────────────────────────────────────────────
-
-import { supabase } from '../lib/supabase';
 
 export async function saveTopicSRState(userId: string, updates: TopicSRStateUpdate[]): Promise<void> {
   try {
