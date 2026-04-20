@@ -4,6 +4,7 @@ import './App.css'
 import LoadingSpinner from './components/LoadingSpinner'
 import MigrationModal from './components/MigrationModal'
 import { useAuth } from './contexts/AuthContext'
+import { AuthGuard } from './components/AuthGuard'
 
 const HomePage = lazy(() => import('./pages/homepage'))
 const NotesPage = lazy(() => import('./pages/notes'))
@@ -49,7 +50,11 @@ function AppContent() {
 }
 
 function App() {
-  return <AppContent />
+  return (
+    <AuthGuard>
+      <AppContent />
+    </AuthGuard>
+  )
 }
 
 export default App

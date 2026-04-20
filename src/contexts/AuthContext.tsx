@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-import { checkForLocalStorageData } from '../lib/migrateLocalStorage'
+import { checkForLocalStorageData, migrateToSupabase } from '../lib/migrateLocalStorage'
 
 interface AuthContextValue {
   user: User | null
@@ -24,8 +24,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [initialized, setInitialized] = useState(false)
   const [showMigrationPrompt, setShowMigrationPrompt] = useState(false)
-  const [migrationError] = useState<string | null>(null)
-  const [isMigrating] = useState(false)
+  const [migrationError, setMigrationError] = useState<string | null>(null)
+  const [isMigrating, setIsMigrating] = useState(false)
   const migrationCheckedRef = useRef(false)
 
   const checkMigrationStatus = async (currentUser: User) => {
