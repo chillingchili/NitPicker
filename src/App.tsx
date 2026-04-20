@@ -2,6 +2,8 @@ import { Route, Routes } from 'react-router-dom'
 import { Suspense, lazy } from 'react'
 import './App.css'
 import LoadingSpinner from './components/LoadingSpinner'
+import MigrationModal from './components/MigrationModal'
+import { useAuth } from './contexts/AuthContext'
 
 const HomePage = lazy(() => import('./pages/homepage'))
 const NotesPage = lazy(() => import('./pages/notes'))
@@ -12,7 +14,9 @@ const PreviousExamsPage = lazy(() => import('./pages/previousexam'))
 const LoginPage = lazy(() => import('./pages/login'))
 const NotFoundPage = lazy(() => import('./pages/notfound'))
 
-function App() {
+function AppContent() {
+  const { showMigrationPrompt, completeMigration, skipMigration, isMigrating, migrationError } = useAuth()
+
   return (
     <>
       <Suspense
@@ -33,8 +37,19 @@ function App() {
           <Route path='*' element={<NotFoundPage />} />
         </Routes>
       </Suspense>
+      <MigrationModal
+        isOpen={showMigrationPrompt}
+        onMigrate={completeMigration}
+        onSkip={skipMigration}
+        isMigrating={isMigrating}
+        error={migrationError}
+      />
     </>
   )
+}
+
+function App() {
+  return <AppContent />
 }
 
 export default App
