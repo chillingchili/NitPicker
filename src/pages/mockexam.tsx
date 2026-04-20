@@ -139,6 +139,24 @@ export default function MockExamPage() {
         });
     }, [session, currentIndex, answers, hintsUsed]);
 
+    const [lastSavedCount, setLastSavedCount] = useState(0);
+
+    useEffect(() => {
+        if (!session || !user || hasFinalizedRef.current) {
+            return;
+        }
+
+        const answeredCount = Object.keys(answers).length;
+        const nextMilestone = Math.floor(answeredCount / 5) * 5;
+        if (nextMilestone > lastSavedCount && nextMilestone > 0) {
+            setLastSavedCount(nextMilestone);
+            const partialResult = computeMockExamResult(session, answers, elapsedSeconds, hintsUsed);
+            saveExamSession(user.id, session, partialResult).catch(() => {
+                // Silently fail — localStorage is the safety net
+            });
+        }
+    }, [session, user, answers, currentIndex, elapsedSeconds, hintsUsed, lastSavedCount]);
+
     const moveToQuestion = (nextIndex: number) => {
         const boundedIndex = Math.max(0, Math.min(totalQuestions - 1, nextIndex));
         setCurrentIndex(boundedIndex);
