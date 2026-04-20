@@ -17,6 +17,12 @@ import {
     saveMockExamResult,
     saveMockExamSession,
     saveExamSession,
+    computeTopicSRUpdate,
+    saveTopicSRState,
+    saveQuestionPerformances,
+    buildQuestionPerformances,
+    loadTopicSRStates,
+    safeSave,
 } from "../exam/mockExamModel";
 import { useAuth } from "../contexts/AuthContext";
 import "katex/dist/katex.min.css";
@@ -72,6 +78,31 @@ export default function MockExamPage() {
 
         const totalExamSeconds = Math.max(0, Math.floor(forcedElapsedSeconds ?? elapsedSeconds));
         const result = computeMockExamResult(session, answers, totalExamSeconds, hintsUsed);
+
+        // SR update pipeline — fire and forget, don't block exam completion
+        if (user) {
+            loadTopicSRStates(user.id).then((existingStates) => {
+                const topicUpdates = computeTopicSRUpdate(session.questions, answers, existingStates);
+                const questionPerformances = buildQuestionPerformances(session.questions, answers);
+
+                safeSave('ofa.sr.latestSummary', topicUpdates.map((u) => ({
+                    topic: u.topic,
+                    previousInterval: u.previousInterval,
+                    newInterval: u.intervalDays,
+                    nextReviewDate: u.nextReviewDate.toISOString(),
+                    easinessFactor: u.easinessFactor,
+                    repetitions: u.repetitions,
+                })));
+
+                return Promise.all([
+                    saveTopicSRState(user.id, topicUpdates),
+                    saveQuestionPerformances(user.id, questionPerformances),
+                ]);
+            }).catch((error) => {
+                console.error('[SR] Update pipeline failed:', error);
+                // Don't block — exam result still saves
+            });
+        }
 
         trackEvent('exam_completed', {
             score: result.correctAnswers,

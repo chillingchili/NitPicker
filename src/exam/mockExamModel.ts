@@ -171,7 +171,7 @@ const migrateMockExamResult = (result: LegacyMockExamResult): MockExamResult => 
   } as MockExamResult;
 };
 
-const safeSave = (key: string, value: unknown) => {
+export const safeSave = (key: string, value: unknown) => {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
