@@ -601,25 +601,4 @@ export async function loadTopicSRStates(userId: string): Promise<Map<string, Top
   }
 }
 
-export async function saveExamSession(
-  userId: string,
-  session: MockExamSession,
-  result: MockExamResult,
-): Promise<void> {
-  try {
-    const { error } = await supabase.from('exam_sessions').insert({
-      user_id: userId,
-      session_id: session.sessionId,
-      settings: session.settings,
-      score: result.correctAnswers,
-      total_questions: result.totalQuestions,
-      correct_answers: result.correctAnswers,
-      duration_seconds: result.totalTimeSeconds,
-    });
-    if (error) {
-      console.error('Failed to save exam session:', error);
-    }
-  } catch (err) {
-    console.error('Failed to save exam session:', err);
-  }
-}
+
