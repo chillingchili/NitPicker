@@ -6,7 +6,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { formatClockFromSeconds, loadMockExamResult } from "../exam/mockExamModel";
+import { formatClockFromSeconds, loadMockExamResult, safeSave, safeLoad } from "../exam/mockExamModel";
 import Layout from "../components/Layout";
 import { normalizeLegacySymbols, normalizeMathDelimiters } from "../lib/textFormat";
 import { trackEvent } from "../lib/analytics";
@@ -82,6 +82,25 @@ export default function MockExamResultsPage() {
   >({});
   const navigate = useNavigate();
   const [result] = useState(() => loadMockExamResult());
+
+  const SR_SUMMARY_KEY = 'ofa.sr.latestSummary';
+  const [srSummary, setSrSummary] = useState<Array<{
+    topic: string;
+    previousInterval: number;
+    newInterval: number;
+    nextReviewDate: string;
+    easinessFactor: number;
+    repetitions: number;
+  }> | null>(() => {
+    const loaded = safeLoad(SR_SUMMARY_KEY);
+    if (loaded && Array.isArray(loaded)) {
+      try { localStorage.removeItem(SR_SUMMARY_KEY); } catch {}
+      return loaded;
+    }
+    return null;
+  });
+
+  const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
 
   const totalQuestions = result?.totalQuestions ?? 0;
   const correctAnswers = result?.correctAnswers ?? 0;
@@ -333,6 +352,28 @@ export default function MockExamResultsPage() {
                   })}
                 </div>
               </div>
+
+              {/* SPACED REPETITION UPDATE SECTION */}
+              {srSummary && srSummary.length > 0 && (
+                <div className="flex flex-col gap-4 mt-4">
+                  <h3 className="text-sm uppercase tracking-wide opacity-60">
+                    Spaced Repetition Update
+                  </h3>
+                  <p className="text-xs opacity-60">
+                    Spaced repetition tracks when to review each topic. Next review dates are calculated based on your performance.
+                  </p>
+                  <div className="flex flex-col gap-2">
+                    {srSummary.map((item) => (
+                      <div key={item.topic} className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-1 text-sm">
+                        <span className="pr-2">{item.topic}</span>
+                        <span className="font-semibold whitespace-nowrap opacity-75">
+                          Next review: {formatDate(item.nextReviewDate)} (interval: {item.previousInterval} → {item.newInterval} days)
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="mt-2 flex flex-col gap-3">
                 <div className="flex items-baseline justify-between border-b pb-2">
