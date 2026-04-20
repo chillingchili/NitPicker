@@ -16,7 +16,9 @@ import {
     loadMockExamSession,
     saveMockExamResult,
     saveMockExamSession,
+    saveExamSession,
 } from "../exam/mockExamModel";
+import { useAuth } from "../contexts/AuthContext";
 import "katex/dist/katex.min.css";
 
 const resolveChoiceImageUrl = (imagePath: string): string => {
@@ -36,6 +38,7 @@ const resolveChoiceImageUrl = (imagePath: string): string => {
 
 export default function MockExamPage() {
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [session] = useState(() => loadMockExamSession());
     const [currentIndex, setCurrentIndex] = useState(session?.currentQuestionIndex ?? 0);
     const [answers, setAnswers] = useState<Record<string, string>>(session?.answers ?? {});
@@ -78,9 +81,16 @@ export default function MockExamPage() {
         });
 
         saveMockExamResult(result);
+
+        if (user) {
+            saveExamSession(user.id, session, result).catch(() => {
+                // Silently fail — localStorage is the safety net
+            });
+        }
+
         clearMockExamSession();
         navigate("/mockexamresults");
-    }, [session, answers, elapsedSeconds, hintsUsed, navigate]);
+    }, [session, answers, elapsedSeconds, hintsUsed, navigate, user]);
 
     useEffect(() => {
         if (!session || hasFinalizedRef.current || isOverallTimerPaused) {

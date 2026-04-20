@@ -530,3 +530,96 @@ export function buildQuestionPerformances(
     };
   });
 }
+
+// ─── Supabase Persistence ─────────────────────────────────────────────────────
+
+import { supabase } from '../lib/supabase';
+
+export async function saveTopicSRState(userId: string, updates: TopicSRStateUpdate[]): Promise<void> {
+  try {
+    const rows = updates.map((u) => ({
+      user_id: userId,
+      topic: u.topic,
+      easiness_factor: u.easinessFactor,
+      interval_days: u.intervalDays,
+      repetitions: u.repetitions,
+      next_review_date: u.nextReviewDate.toISOString().split('T')[0],
+      last_review_date: u.lastReviewDate.toISOString().split('T')[0],
+    }));
+    const { error } = await supabase.from('topic_sr_state').upsert(rows, { onConflict: 'user_id,topic' });
+    if (error) {
+      console.error('Failed to save topic SR state:', error);
+    }
+  } catch (err) {
+    console.error('Failed to save topic SR state:', err);
+  }
+}
+
+export async function saveQuestionPerformances(userId: string, performances: QuestionPerformance[]): Promise<void> {
+  try {
+    const rows = performances.map((p) => ({
+      user_id: userId,
+      question_id: p.questionId,
+      correct_count: p.correctCount,
+      incorrect_count: p.incorrectCount,
+      last_answered_at: p.lastAnsweredAt.toISOString(),
+    }));
+    const { error } = await supabase.from('question_performance').upsert(rows, { onConflict: 'user_id,question_id' });
+    if (error) {
+      console.error('Failed to save question performances:', error);
+    }
+  } catch (err) {
+    console.error('Failed to save question performances:', err);
+  }
+}
+
+export async function loadTopicSRStates(userId: string): Promise<Map<string, TopicSRState>> {
+  try {
+    const { data, error } = await supabase
+      .from('topic_sr_state')
+      .select('*')
+      .eq('user_id', userId);
+    if (error) {
+      console.error('Failed to load topic SR states:', error);
+      return new Map();
+    }
+    const map = new Map<string, TopicSRState>();
+    for (const row of data ?? []) {
+      map.set(row.topic, {
+        topic: row.topic,
+        easinessFactor: row.easiness_factor,
+        intervalDays: row.interval_days,
+        repetitions: row.repetitions,
+        nextReviewDate: new Date(row.next_review_date),
+        lastReviewDate: new Date(row.last_review_date),
+      });
+    }
+    return map;
+  } catch (err) {
+    console.error('Failed to load topic SR states:', err);
+    return new Map();
+  }
+}
+
+export async function saveExamSession(
+  userId: string,
+  session: MockExamSession,
+  result: MockExamResult,
+): Promise<void> {
+  try {
+    const { error } = await supabase.from('exam_sessions').insert({
+      user_id: userId,
+      session_id: session.sessionId,
+      settings: session.settings,
+      score: result.correctAnswers,
+      total_questions: result.totalQuestions,
+      correct_answers: result.correctAnswers,
+      duration_seconds: result.totalTimeSeconds,
+    });
+    if (error) {
+      console.error('Failed to save exam session:', error);
+    }
+  } catch (err) {
+    console.error('Failed to save exam session:', err);
+  }
+}
