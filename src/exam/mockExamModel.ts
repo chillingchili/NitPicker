@@ -286,8 +286,33 @@ export const formatClockFromSeconds = (seconds: number, alwaysShowHours = true):
 
 const topicOrderMap = new Map<string, number>(allTopics.map((topic, index) => [topic, index]));
 
-export const computeMockExamResult = (
+import { supabase } from "../lib/supabase";
+
+export const saveExamSession = async (
+  userId: string,
   session: MockExamSession,
+  result: MockExamResult,
+): Promise<void> => {
+  try {
+    const { error } = await supabase.from("exam_sessions").insert({
+      user_id: userId,
+      session_id: session.sessionId,
+      settings: session.settings,
+      score: result.correctAnswers,
+      total_questions: result.totalQuestions,
+      correct_answers: result.correctAnswers,
+      duration_seconds: result.totalTimeSeconds,
+    });
+
+    if (error) {
+      console.error("Failed to save exam session to Supabase:", error.message);
+    }
+  } catch (err) {
+    console.error("Failed to save exam session to Supabase:", err);
+  }
+};
+
+export const computeMockExamResult = (
   answers: Record<string, string>,
   totalTimeSeconds: number,
   hintsUsed: number,
@@ -413,3 +438,95 @@ export const computeMockExamResult = (
     wrongQuestions,
   };
 };
+
+// ─── Spaced Repetition (SM-2) ────────────────────────────────────────────────
+
+import { supermemo } from 'supermemo';
+
+const MAX_INTERVAL_DAYS = 30;
+
+export type TopicSRState = {
+  topic: string;
+  easinessFactor: number;
+  intervalDays: number;
+  repetitions: number;
+  nextReviewDate: Date;
+  lastReviewDate: Date;
+};
+
+export type QuestionPerformance = {
+  questionId: string;
+  correctCount: number;
+  incorrectCount: number;
+  confidence: number | null;
+  lastAnsweredAt: Date;
+};
+
+export type TopicSRStateUpdate = TopicSRState & { previousInterval: number };
+
+export function computeTopicSRUpdate(
+  questions: MockExamQuestion[],
+  answers: Record<string, string>,
+  existingStates: Map<string, TopicSRState>,
+): TopicSRStateUpdate[] {
+  // Group questions by topic
+  const questionsByTopic = new Map<string, MockExamQuestion[]>();
+  for (const q of questions) {
+    const list = questionsByTopic.get(q.subjectTopic) ?? [];
+    list.push(q);
+    questionsByTopic.set(q.subjectTopic, list);
+  }
+
+  const updates: TopicSRStateUpdate[] = [];
+
+  for (const [topic, topicQuestions] of questionsByTopic) {
+    const existing = existingStates.get(topic);
+    let interval = existing?.intervalDays ?? 0;
+    let repetition = existing?.repetitions ?? 0;
+    let efactor = existing?.easinessFactor ?? 2.5;
+    const previousInterval = interval;
+
+    // Apply SM-2 for each question in the topic (sequential state updates)
+    for (const q of topicQuestions) {
+      const isCorrect = answers[q.id] === q.correctOption;
+      const grade = isCorrect ? 5 : 0;
+      const result = supermemo({ interval, repetition, efactor }, grade);
+      interval = result.interval;
+      repetition = result.repetition;
+      efactor = result.efactor;
+    }
+
+    // Cap interval at 30 days
+    const cappedInterval = Math.min(interval, MAX_INTERVAL_DAYS);
+    const now = new Date();
+    const nextReviewDate = new Date(now.getTime() + cappedInterval * 86_400_000);
+
+    updates.push({
+      topic,
+      easinessFactor: efactor,
+      intervalDays: cappedInterval,
+      repetitions: repetition,
+      nextReviewDate,
+      lastReviewDate: now,
+      previousInterval,
+    });
+  }
+
+  return updates;
+}
+
+export function buildQuestionPerformances(
+  questions: MockExamQuestion[],
+  answers: Record<string, string>,
+): QuestionPerformance[] {
+  return questions.map((q) => {
+    const isCorrect = answers[q.id] === q.correctOption;
+    return {
+      questionId: q.id,
+      correctCount: isCorrect ? 1 : 0,
+      incorrectCount: isCorrect ? 0 : 1,
+      confidence: null,
+      lastAnsweredAt: new Date(),
+    };
+  });
+}
