@@ -82,9 +82,8 @@ export default function MockExamPage() {
         const topicUpdates = computeTopicSRUpdate(session.questions, answers, new Map());
         safeSave('ofa.sr.latestSummary', topicUpdates.map((u) => ({
             topic: u.topic,
-            previousInterval: u.previousInterval,
-            newInterval: u.intervalDays,
-            nextReviewDate: u.nextReviewDate.toISOString(),
+            previousIntervalExams: u.previousIntervalExams,
+            newIntervalExams: u.intervalExams,
             easinessFactor: u.easinessFactor,
             repetitions: u.repetitions,
         })));

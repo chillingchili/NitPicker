@@ -447,11 +447,13 @@ export const computeMockExamResult = (
 import { supermemo } from 'supermemo';
 
 const MAX_INTERVAL_DAYS = 30;
+const DAYS_PER_EXAM = 4;
+const MAX_INTERVAL_EXAMS = 8;
 
 export type TopicSRState = {
   topic: string;
   easinessFactor: number;
-  intervalDays: number;
+  intervalExams: number;
   repetitions: number;
   nextReviewDate: Date;
   lastReviewDate: Date;
@@ -473,7 +475,7 @@ export type TopicMastery = {
   masteryLevel: 0 | 25 | 50 | 75 | 100; // 0 = no data, 25/50/75/100 = tiers
 };
 
-export type TopicSRStateUpdate = TopicSRState & { previousInterval: number };
+export type TopicSRStateUpdate = TopicSRState & { previousIntervalExams: number };
 
 export function computeTopicSRUpdate(
   questions: MockExamQuestion[],
@@ -492,10 +494,10 @@ export function computeTopicSRUpdate(
 
   for (const [topic, topicQuestions] of questionsByTopic) {
     const existing = existingStates.get(topic);
-    let interval = existing?.intervalDays ?? 0;
+    let interval = existing?.intervalExams ?? 0;
     let repetition = existing?.repetitions ?? 0;
     let efactor = existing?.easinessFactor ?? 2.5;
-    const previousInterval = interval;
+    const previousIntervalExams = interval;
 
     // Apply SM-2 for each question in the topic (sequential state updates)
     for (const q of topicQuestions) {
@@ -507,19 +509,20 @@ export function computeTopicSRUpdate(
       efactor = result.efactor;
     }
 
-    // Cap interval at 30 days
-    const cappedInterval = Math.min(interval, MAX_INTERVAL_DAYS);
+    // Convert SM-2 day spacing to exam spacing so review cadence fits intensive prep periods.
+    const cappedDayInterval = Math.min(interval, MAX_INTERVAL_DAYS);
+    const examInterval = Math.max(1, Math.min(MAX_INTERVAL_EXAMS, Math.ceil(cappedDayInterval / DAYS_PER_EXAM)));
     const now = new Date();
-    const nextReviewDate = new Date(now.getTime() + cappedInterval * 86_400_000);
+    const nextReviewDate = new Date(now.getTime() + examInterval * 86_400_000);
 
     updates.push({
       topic,
       easinessFactor: efactor,
-      intervalDays: cappedInterval,
+      intervalExams: examInterval,
       repetitions: repetition,
       nextReviewDate,
       lastReviewDate: now,
-      previousInterval,
+      previousIntervalExams,
     });
   }
 
@@ -550,7 +553,7 @@ export async function saveTopicSRState(userId: string, updates: TopicSRStateUpda
       user_id: userId,
       topic: u.topic,
       easiness_factor: u.easinessFactor,
-      interval_days: u.intervalDays,
+      interval_days: u.intervalExams,
       repetitions: u.repetitions,
       next_review_date: u.nextReviewDate.toISOString().split('T')[0],
       last_review_date: u.lastReviewDate.toISOString().split('T')[0],
@@ -597,7 +600,7 @@ export async function loadTopicSRStates(userId: string): Promise<Map<string, Top
       map.set(row.topic, {
         topic: row.topic,
         easinessFactor: row.easiness_factor,
-        intervalDays: row.interval_days,
+        intervalExams: row.interval_days,
         repetitions: row.repetitions,
         nextReviewDate: new Date(row.next_review_date),
         lastReviewDate: new Date(row.last_review_date),

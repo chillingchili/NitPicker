@@ -87,9 +87,10 @@ export default function MockExamResultsPage() {
   const srSummary = (() => {
     const loaded = safeLoad<Array<{
       topic: string;
-      previousInterval: number;
-      newInterval: number;
-      nextReviewDate: string;
+      previousIntervalExams?: number;
+      newIntervalExams?: number;
+      previousInterval?: number;
+      newInterval?: number;
       easinessFactor: number;
       repetitions: number;
     }>>(SR_SUMMARY_KEY);
@@ -99,8 +100,6 @@ export default function MockExamResultsPage() {
     }
     return null;
   })();
-
-  const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
 
   const totalQuestions = result?.totalQuestions ?? 0;
   const correctAnswers = result?.correctAnswers ?? 0;
@@ -360,17 +359,22 @@ export default function MockExamResultsPage() {
                     Spaced Repetition Update
                   </h3>
                   <p className="text-xs opacity-60">
-                    Spaced repetition tracks when to review each topic. Next review dates are calculated based on your performance.
+                    Spaced repetition now tracks by exam count so you can review within your remaining prep window.
                   </p>
                   <div className="flex flex-col gap-2">
-                    {srSummary.map((item) => (
-                      <div key={item.topic} className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-1 text-sm">
-                        <span className="pr-2">{item.topic}</span>
-                        <span className="font-semibold whitespace-nowrap opacity-75">
-                          Next review: {formatDate(item.nextReviewDate)} (interval: {item.previousInterval} → {item.newInterval} days)
-                        </span>
-                      </div>
-                    ))}
+                    {srSummary.map((item) => {
+                      const previousIntervalExams = item.previousIntervalExams ?? item.previousInterval ?? 0;
+                      const nextIntervalExams = item.newIntervalExams ?? item.newInterval ?? 1;
+
+                      return (
+                        <div key={item.topic} className="flex items-center justify-between border-b border-black/10 dark:border-white/10 pb-1 text-sm">
+                          <span className="pr-2">{item.topic}</span>
+                          <span className="font-semibold whitespace-nowrap opacity-75">
+                            Next review in {nextIntervalExams} exam{nextIntervalExams === 1 ? "" : "s"} (interval: {previousIntervalExams}{" -> "}{nextIntervalExams} exams)
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
