@@ -48,7 +48,7 @@ export default function MockExamPrepPage() {
   });
 
   // Fetch question performance data
-  const { performances, isLoading: isPerformanceLoading } = useQuestionPerformance();
+  const { performances } = useQuestionPerformance();
 
   // Compute mastered IDs and topic mastery
   const masteredIds = useMemo(() => {
@@ -58,15 +58,6 @@ export default function MockExamPrepPage() {
   const topicMastery = useMemo(() => {
     return computeTopicMastery(performances, getQuestionTopicMap());
   }, [performances]);
-
-  // Create a map for quick lookup of mastery by topic
-  const topicMasteryMap = useMemo(() => {
-    const map = new Map<string, (typeof topicMastery)[number]>();
-    for (const m of topicMastery) {
-      map.set(m.topic, m);
-    }
-    return map;
-  }, [topicMastery]);
 
   // Persist toggle state to localStorage on change
   useEffect(() => {

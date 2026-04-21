@@ -586,17 +586,18 @@ export const buildMockExamSession = (
   const pool = buildQuestionPool(settings, {
     excludeQuestionIds: settings.excludeMastered ? options?.excludeQuestionIds : undefined,
   });
+  const excludedIds = options?.excludeQuestionIds;
 
   // Graceful fallback: if pool after exclusion is smaller than questionCount,
   // re-include mastered questions to fill remaining slots
   let finalPool = pool;
-  if (settings.excludeMastered && options?.excludeQuestionIds && pool.length < settings.questionCount) {
+  if (settings.excludeMastered && excludedIds && pool.length < settings.questionCount) {
     const fullPool = buildQuestionPool(settings);
     const excludedCount = settings.questionCount - pool.length;
     const excludedQuestions = shuffleQuestions(
       fullPool.filter((q) => {
         const stableKey = q.id.replace(/::\d+$/, "");
-        return options.excludeQuestionIds.has(stableKey);
+        return excludedIds.has(stableKey);
       }),
     ).slice(0, excludedCount);
     finalPool = [...pool, ...excludedQuestions];

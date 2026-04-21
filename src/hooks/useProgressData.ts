@@ -146,7 +146,7 @@ export function useProgressData(): UseProgressDataReturn {
         const date = new Date(s.created_at);
         const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         return {
-          date: sessions.filter((_, i) => {
+          date: sessions.filter((_) => {
             const d = new Date(_.created_at);
             return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) === dateStr;
           }).length > 1
