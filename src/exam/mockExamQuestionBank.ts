@@ -6,6 +6,7 @@ import {
   type MockExamQuestion,
   type MockExamSession,
   type MockExamSettings,
+  type QuestionPerformance,
 } from "./mockExamModel";
 
 type ParsedVaultQuestion = {
@@ -467,8 +468,8 @@ const buildQuestionPool = (
     .filter((question) => !requiresVisualContent(question.questionText, question.optionLines, question.questionImagePath, question.containsMarkdownTable, question.tableMarkdown))
     .filter((question) => {
       if (!options?.excludeQuestionIds) return true;
-      // Strip trailing ::index from question.id to get stable key (examCode::questionNumber)
-      const stableKey = question.id.split("::").slice(0, 2).join("::");
+      // ParsedVaultQuestion has examCode and questionNumber — build stable key directly
+      const stableKey = `${question.examCode}::${question.questionNumber}`;
       return !options.excludeQuestionIds.has(stableKey);
     })
     .map<MockExamQuestion | null>((question, index) => {
@@ -517,9 +518,96 @@ const shuffleQuestions = <T>(items: T[]): T[] => {
   return result;
 };
 
-export const buildMockExamSession = (settings: MockExamSettings): MockExamSession => {
-  const pool = buildQuestionPool(settings);
-  const selectedQuestions = shuffleQuestions(pool).slice(0, Math.min(pool.length, settings.questionCount));
+/**
+ * Weighted shuffle: questions from weak topics (low correct ratio) get higher selection probability.
+ * Weight formula: weight = 1 - topicCorrectRatio
+ * Questions with no performance data get weight = 1 (neutral, equal chance).
+ * Uses weighted random selection without replacement.
+ */
+const weightedShuffle = (
+  questions: MockExamQuestion[],
+  performances: Map<string, QuestionPerformance>,
+  questionTopicMap: Map<string, string>,
+): MockExamQuestion[] => {
+  // Build topic-level correct ratio map from performances
+  const topicStats = new Map<string, { correct: number; total: number }>();
+  for (const perf of performances.values()) {
+    const topic = questionTopicMap.get(perf.questionId) ?? "Unknown";
+    const existing = topicStats.get(topic) ?? { correct: 0, total: 0 };
+    existing.correct += perf.correctCount;
+    existing.total += perf.correctCount + perf.incorrectCount;
+    topicStats.set(topic, existing);
+  }
+
+  const topicCorrectRatio = new Map<string, number>();
+  for (const [topic, stats] of topicStats) {
+    topicCorrectRatio.set(topic, stats.total > 0 ? stats.correct / stats.total : 0);
+  }
+
+  // Weighted random selection without replacement
+  const remaining = [...questions];
+  const result: MockExamQuestion[] = [];
+
+  while (remaining.length > 0) {
+    const weights = remaining.map((q) => {
+      const topic = questionTopicMap.get(q.id.replace(/::\d+$/, "")) ?? q.subjectTopic;
+      const ratio = topicCorrectRatio.get(topic);
+      // Questions from topics with no data get weight = 1 (neutral)
+      // Weak topics (low ratio) get higher weight: 1 - 0.3 = 0.7 vs strong: 1 - 0.9 = 0.1
+      return ratio !== undefined ? 1 - ratio : 1;
+    });
+
+    const totalWeight = weights.reduce((sum, w) => sum + w, 0);
+    let random = Math.random() * totalWeight;
+
+    let selectedIndex = 0;
+    for (let i = 0; i < weights.length; i++) {
+      random -= weights[i];
+      if (random <= 0) {
+        selectedIndex = i;
+        break;
+      }
+    }
+
+    result.push(remaining[selectedIndex]);
+    remaining.splice(selectedIndex, 1);
+  }
+
+  return result;
+};
+
+export const buildMockExamSession = (
+  settings: MockExamSettings,
+  options?: {
+    excludeQuestionIds?: Set<string>;
+    performances?: Map<string, QuestionPerformance>;
+  },
+): MockExamSession => {
+  const pool = buildQuestionPool(settings, {
+    excludeQuestionIds: settings.excludeMastered ? options?.excludeQuestionIds : undefined,
+  });
+
+  // Graceful fallback: if pool after exclusion is smaller than questionCount,
+  // re-include mastered questions to fill remaining slots
+  let finalPool = pool;
+  if (settings.excludeMastered && options?.excludeQuestionIds && pool.length < settings.questionCount) {
+    const fullPool = buildQuestionPool(settings);
+    const excludedCount = settings.questionCount - pool.length;
+    const excludedQuestions = shuffleQuestions(
+      fullPool.filter((q) => {
+        const stableKey = q.id.replace(/::\d+$/, "");
+        return options.excludeQuestionIds.has(stableKey);
+      }),
+    ).slice(0, excludedCount);
+    finalPool = [...pool, ...excludedQuestions];
+    console.warn(
+      `Smart exam pool too small (${pool.length} < ${settings.questionCount}). Including ${excludedQuestions.length} mastered questions as fallback.`,
+    );
+  }
+
+  const selectedQuestions = settings.smartMode && options?.performances
+    ? weightedShuffle(finalPool, options.performances, getQuestionTopicMap()).slice(0, Math.min(finalPool.length, settings.questionCount))
+    : shuffleQuestions(finalPool).slice(0, Math.min(finalPool.length, settings.questionCount));
 
   return attachSessionSchema({
     sessionId: `mock-session-${Date.now()}`,
