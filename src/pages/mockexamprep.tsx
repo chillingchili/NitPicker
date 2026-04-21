@@ -12,14 +12,19 @@ import {
   saveMockExamSession,
   type CategoryName,
   type MockExamSettings,
+  type QuestionPerformance,
 } from "../exam/mockExamModel";
-import { buildMockExamSession, getAllAvailableYears, getEligibleQuestionCount } from "../exam/mockExamQuestionBank";
+import { buildMockExamSession, getAllAvailableYears, getEligibleQuestionCount, getQuestionTopicMap } from "../exam/mockExamQuestionBank";
 import { UI_LIMITS } from "../config/constants";
 import { trackEvent } from "../lib/analytics";
+import { computeMasteredIds, computeTopicMastery, getMasteryColor, SMART_EXAM_TOGGLE_KEY } from "../lib/smartExamCache";
+import { useQuestionPerformance } from "../hooks/useQuestionPerformance";
+import { useAuth } from "../contexts/AuthContext";
 
 // This is a temporary page to show the exam maker page
 export default function MockExamPrepPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [examType, setExamType] = useState<"AM EXAM" | "PM EXAM">("AM EXAM");
   const [isTimed, setIsTimed] = useState(true);
   const [durationInput, setDurationInput] = useState<string>(String(UI_LIMITS.defaultDurationMinutes));
@@ -35,6 +40,39 @@ export default function MockExamPrepPage() {
   });
   const [showResumeModal, setShowResumeModal] = useState(false);
   const [isStartingExam, setIsStartingExam] = useState(false);
+
+  // Smart Mode state - persists to localStorage, defaults to ON (true)
+  const [excludeMastered, setExcludeMastered] = useState(() => {
+    const saved = localStorage.getItem(SMART_EXAM_TOGGLE_KEY);
+    return saved !== null ? saved === "true" : true;
+  });
+
+  // Fetch question performance data
+  const { performances, isLoading: isPerformanceLoading } = useQuestionPerformance();
+
+  // Compute mastered IDs and topic mastery
+  const masteredIds = useMemo(() => {
+    return computeMasteredIds(performances);
+  }, [performances]);
+
+  const topicMastery = useMemo(() => {
+    return computeTopicMastery(performances, getQuestionTopicMap());
+  }, [performances]);
+
+  // Create a map for quick lookup of mastery by topic
+  const topicMasteryMap = useMemo(() => {
+    const map = new Map<string, (typeof topicMastery)[number]>();
+    for (const m of topicMastery) {
+      map.set(m.topic, m);
+    }
+    return map;
+  }, [topicMastery]);
+
+  // Persist toggle state to localStorage on change
+  useEffect(() => {
+    localStorage.setItem(SMART_EXAM_TOGGLE_KEY, String(excludeMastered));
+  }, [excludeMastered]);
+
   const formControlClassName = "h-6 w-6 md:h-4 md:w-4 accent-black dark:accent-white shrink-0 cursor-pointer";
   const closeStartErrorModal = () => setStartError(null);
   const closeInputValidationModal = () => setInputValidationError(null);
@@ -135,9 +173,17 @@ export default function MockExamPrepPage() {
       instantAnswers,
       selectedTopics,
       selectedYears,
+      excludeMastered,
+      smartMode: excludeMastered,
     };
 
-    const session = buildMockExamSession(examSettings);
+    const performancesMap = new Map<string, QuestionPerformance>(
+      performances.map((p) => [p.questionId, p])
+    );
+    const session = buildMockExamSession(examSettings, {
+      excludeQuestionIds: excludeMastered ? masteredIds : undefined,
+      performances: excludeMastered ? performancesMap : undefined,
+    });
 
     if (session.questions.length === 0) {
       setStartError("No questions match your current filters. Try selecting more topics.");
@@ -444,6 +490,20 @@ export default function MockExamPrepPage() {
                 </label>
               </section>
 
+              <section className="flex flex-col gap-3 pb-2">
+                <h2 className="text-2xl font-light">Smart Mode</h2>
+                <label className="flex items-center gap-3 py-1 text-sm lg:text-base cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className={formControlClassName}
+                    checked={excludeMastered}
+                    onChange={(e) => setExcludeMastered(e.target.checked)}
+                  />
+                  Exclude mastered questions
+                </label>
+                <p className="text-xs opacity-70">Questions you've answered correctly 3+ times are excluded to focus on weak areas.</p>
+              </section>
+
               <section className="flex flex-col gap-4">
                 <h2 className="text-2xl font-light">Exam Years</h2>
                 {isStartingExam ? <SkeletonLoader lines={2} /> : renderYearsFieldset()}
@@ -454,6 +514,26 @@ export default function MockExamPrepPage() {
                 <p className="text-xs opacity-70">
                   Default: all topics selected. You can deselect all topics, but you need at least one to start.
                 </p>
+
+                {/* Per-topic mastery indicators */}
+                {user && topicMastery.length > 0 && (
+                  <div className="border-2 p-3 lg:p-4 dark:border-white/30">
+                    <h3 className="text-sm lg:text-base font-medium mb-2">Topic Mastery</h3>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      {topicMastery.map((m) => (
+                        <div key={m.topic} className="flex items-center gap-1.5 text-xs">
+                          <span className={`w-3 h-3 rounded-full ${getMasteryColor(m.masteryLevel)}`} />
+                          <span>{m.topic}</span>
+                          <span className="opacity-60">
+                            {m.correctCount + m.incorrectCount > 0
+                              ? `${Math.round(m.correctRatio * 100)}%`
+                              : 'Not attempted'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {isStartingExam ? <SkeletonLoader lines={5} /> : null}
 
