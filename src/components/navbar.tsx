@@ -55,8 +55,8 @@ export default function NavBar(){
 
                 {user ? (
                     <div className="flex items-center gap-4">
-                        <Link to="/mockexam" className="text-sm font-bold text-black dark:text-white hover:underline">
-                            {user.email}
+                        <Link to="/progress" className="text-sm font-bold text-black dark:text-white hover:underline">
+                            Progress
                         </Link>
                         <button
                             type="button"
@@ -119,7 +119,7 @@ export default function NavBar(){
 
                 {user ? (
                     <div className="flex flex-col items-center gap-3">
-                        <span className="text-xl font-bold text-black dark:text-white">{user.email}</span>
+                        <Link to="/progress" onClick={closeMenu} className="text-xl font-bold text-black dark:text-white hover:underline">PROGRESS</Link>
                         <button
                             type="button"
                             onClick={handleLogout}

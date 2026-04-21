@@ -13,6 +13,7 @@ const MockExamPrepPage = lazy(() => import('./pages/mockexamprep'))
 const MockExamResultsPage = lazy(() => import('./pages/mockexamresults'))
 const PreviousExamsPage = lazy(() => import('./pages/previousexam'))
 const LoginPage = lazy(() => import('./pages/login'))
+const ProgressDashboardPage = lazy(() => import('./pages/progressdashboard'))
 const NotFoundPage = lazy(() => import('./pages/notfound'))
 
 function AppContent() {
@@ -35,6 +36,7 @@ function AppContent() {
           <Route path='/mockexamresults' element={<MockExamResultsPage/>} />
           <Route path='/previousexams' element={<PreviousExamsPage />} />
           <Route path='/login' element={<LoginPage />} />
+          <Route path='/progress' element={<ProgressDashboardPage />} />
           <Route path='*' element={<NotFoundPage />} />
         </Routes>
       </Suspense>
