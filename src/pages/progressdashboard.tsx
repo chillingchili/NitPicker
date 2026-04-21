@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import Layout from '../components/Layout'
-import LoadingSpinner from '../components/LoadingSpinner'
 import SkeletonLoader from '../components/SkeletonLoader'
 import { useAuth } from '../contexts/AuthContext'
-import { useProgressData, type TopicMasteryData, type CoverageData } from '../hooks/useProgressData'
+import { useProgressData } from '../hooks/useProgressData'
+import { useTheme } from '../hooks/useTheme'
 import { categoryTopics, type CategoryName } from '../exam/mockExamModel'
 import { Check, Minus } from 'lucide-react'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, BarChart, Bar } from 'recharts'
 
 function getMasteryCellClass(pct: number, attempted: boolean): string {
   if (!attempted) return 'bg-gray-200 dark:bg-zinc-800'
@@ -18,6 +19,7 @@ function getMasteryCellClass(pct: number, attempted: boolean): string {
 export default function ProgressDashboardPage() {
   const { user } = useAuth()
   const { data, loading, error, refetch } = useProgressData()
+  const { isDark } = useTheme()
   const navigate = useNavigate()
 
   // Auth guard: redirect if not logged in
@@ -188,6 +190,87 @@ export default function ProgressDashboardPage() {
               </div>
             )
           })}
+        </section>
+
+        {/* Section 4 — Score History Chart */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-bold text-black dark:text-white">Score History</h2>
+          {data.scoreHistory.length === 0 ? (
+            <p className="text-zinc-500 dark:text-zinc-400 text-center py-8">
+              Complete an exam to see your score trend
+            </p>
+          ) : (
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={data.scoreHistory}>
+                <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} />
+                <XAxis dataKey="date" stroke={isDark ? '#9ca3af' : '#6b7280'} fontSize={12} />
+                <YAxis domain={[0, 100]} stroke={isDark ? '#9ca3af' : '#6b7280'} fontSize={12} tickFormatter={(v: number) => `${v}%`} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                    color: isDark ? '#ffffff' : '#000000',
+                    border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                  }}
+                  formatter={(value) => [`${value}%`, 'Score']}
+                  labelFormatter={(label) => `Exam: ${label}`}
+                />
+                <ReferenceLine
+                  y={60}
+                  stroke={isDark ? '#ef4444' : '#dc2626'}
+                  strokeDasharray="5 5"
+                  label={{ value: '60% pass', position: 'right', fill: isDark ? '#9ca3af' : '#6b7280', fontSize: 11 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="scorePct"
+                  stroke="#3b82f6"
+                  strokeWidth={2}
+                  dot={{ r: 4, fill: '#3b82f6' }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </section>
+
+        {/* Section 5 — Retention by Topic */}
+        <section className="space-y-4">
+          <h2 className="text-2xl font-bold text-black dark:text-white">Retention by Topic</h2>
+          {(() => {
+            const attemptedTopics = data.retention.filter((r) => r.attempted)
+            if (attemptedTopics.length === 0) {
+              return (
+                <p className="text-zinc-500 dark:text-zinc-400 text-center py-8">
+                  Complete an exam to see your retention stats
+                </p>
+              )
+            }
+            return (
+              <ResponsiveContainer width="100%" height={Math.max(300, attemptedTopics.length * 28)}>
+                <BarChart layout="vertical" data={attemptedTopics}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={isDark ? '#374151' : '#e5e7eb'} horizontal={false} />
+                  <XAxis type="number" domain={[0, 100]} stroke={isDark ? '#9ca3af' : '#6b7280'} fontSize={12} tickFormatter={(v: number) => `${v}%`} />
+                  <YAxis
+                    type="category"
+                    dataKey="topic"
+                    stroke={isDark ? '#9ca3af' : '#6b7280'}
+                    fontSize={11}
+                    width={140}
+                    tickFormatter={(v: string) => v.length > 30 ? `${v.slice(0, 27)}...` : v}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                      color: isDark ? '#ffffff' : '#000000',
+                      border: `1px solid ${isDark ? '#374151' : '#e5e7eb'}`,
+                    }}
+                    formatter={(value) => [`${value}%`, 'Correct']}
+                  />
+                  <Bar dataKey="correctPct" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                </BarChart>
+              </ResponsiveContainer>
+            )
+          })()}
         </section>
 
       </div>

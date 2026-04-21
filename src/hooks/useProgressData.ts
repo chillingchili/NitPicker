@@ -50,7 +50,8 @@ export type UseProgressDataReturn = {
 };
 
 const findCategory = (topic: string): CategoryName => {
-  for (const [cat, topics] of Object.entries(categoryTopics)) {
+  const entries = Object.entries(categoryTopics) as unknown as [string, string[]][];
+  for (const [cat, topics] of entries) {
     if (topics.includes(topic)) {
       return cat as CategoryName;
     }
