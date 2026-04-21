@@ -10,10 +10,10 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 
 function getMasteryCellClass(pct: number, attempted: boolean): string {
   if (!attempted) return 'bg-gray-200 dark:bg-zinc-800'
-  if (pct < 25) return 'bg-blue-200 dark:bg-blue-900/40'
-  if (pct < 50) return 'bg-blue-300 dark:bg-blue-800/50'
-  if (pct < 75) return 'bg-blue-400 dark:bg-blue-700/60'
-  return 'bg-blue-500 dark:bg-blue-600/70 text-white'
+  if (pct < 25) return 'bg-zinc-300 dark:bg-zinc-700'
+  if (pct < 50) return 'bg-zinc-400 dark:bg-zinc-600'
+  if (pct < 75) return 'bg-zinc-600 dark:bg-zinc-400'
+  return 'bg-zinc-800 dark:bg-zinc-200 text-white dark:text-zinc-900'
 }
 
 export default function ProgressDashboardPage() {
@@ -223,9 +223,9 @@ export default function ProgressDashboardPage() {
                 <Line
                   type="monotone"
                   dataKey="scorePct"
-                  stroke="#3b82f6"
+                  stroke={isDark ? '#ffffff' : '#000000'}
                   strokeWidth={2}
-                  dot={{ r: 4, fill: '#3b82f6' }}
+                  dot={{ r: 4, fill: isDark ? '#ffffff' : '#000000' }}
                   activeDot={{ r: 6 }}
                 />
               </LineChart>
@@ -266,7 +266,7 @@ export default function ProgressDashboardPage() {
                     }}
                     formatter={(value) => [`${value}%`, 'Correct']}
                   />
-                  <Bar dataKey="correctPct" fill="#3b82f6" radius={[0, 4, 4, 0]} barSize={20} />
+                  <Bar dataKey="correctPct" fill={isDark ? '#ffffff' : '#000000'} radius={[0, 4, 4, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             )

@@ -82,13 +82,13 @@ export function computeTopicMastery(
 
 // ─── Mastery Color Mapping ──────────────────────────────────────────────────
 
-// 4-tier blue gradient matching the dashboard heatmap in progressdashboard.tsx
+// 4-tier grayscale matching the dashboard heatmap in progressdashboard.tsx
 const MASTERY_COLORS: Record<number, { light: string; dark: string }> = {
   0: { light: 'bg-gray-200 dark:bg-zinc-800', dark: 'bg-gray-200 dark:bg-zinc-800' },
-  25: { light: 'bg-blue-200 dark:bg-blue-900/40', dark: 'bg-blue-200 dark:bg-blue-900/40' },
-  50: { light: 'bg-blue-300 dark:bg-blue-800/50', dark: 'bg-blue-300 dark:bg-blue-800/50' },
-  75: { light: 'bg-blue-400 dark:bg-blue-700/60', dark: 'bg-blue-400 dark:bg-blue-700/60' },
-  100: { light: 'bg-blue-500 dark:bg-blue-600/70 text-white', dark: 'bg-blue-500 dark:bg-blue-600/70 text-white' },
+  25: { light: 'bg-zinc-300 dark:bg-zinc-700', dark: 'bg-zinc-300 dark:bg-zinc-700' },
+  50: { light: 'bg-zinc-400 dark:bg-zinc-600', dark: 'bg-zinc-400 dark:bg-zinc-600' },
+  75: { light: 'bg-zinc-600 dark:bg-zinc-400', dark: 'bg-zinc-600 dark:bg-zinc-400' },
+  100: { light: 'bg-zinc-800 dark:bg-zinc-200 text-white', dark: 'bg-zinc-800 dark:bg-zinc-200 text-white' },
 };
 
 /**

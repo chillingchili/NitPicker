@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { categoryTopics, type CategoryName } from '../exam/mockExamModel';
-import { getQuestionTopicMap, resolveQuestionTopic } from '../exam/mockExamQuestionBank';
+import { getQuestionTopicMap, resolveQuestionTopic, getTopicQuestionCounts } from '../exam/mockExamQuestionBank';
 
 // Types
 export type TopicMasteryData = {
@@ -64,9 +64,10 @@ export function useProgressData(): UseProgressDataReturn {
   const [data, setData] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const userId = user?.id ?? null;
 
   const fetchData = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setData(null);
       setLoading(false);
       return;
@@ -81,12 +82,12 @@ export function useProgressData(): UseProgressDataReturn {
         supabase
           .from('exam_sessions')
           .select('created_at, score, total_questions, correct_answers')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .order('created_at', { ascending: true }),
         supabase
           .from('question_performance')
           .select('question_id, correct_count, incorrect_count, last_answered_at')
-          .eq('user_id', user.id),
+          .eq('user_id', userId),
       ]);
 
       if (sessionsResult.error) {
@@ -99,8 +100,9 @@ export function useProgressData(): UseProgressDataReturn {
       const sessions = sessionsResult.data ?? [];
       const performances = performanceResult.data ?? [];
 
-      // Get question → topic mapping
+      // Get question → topic mapping and total questions per topic
       const topicMap = getQuestionTopicMap();
+      const topicCounts = getTopicQuestionCounts();
 
       // Aggregate question performance by topic
       const topicAggregation = new Map<string, { correct: number; incorrect: number }>();
@@ -113,19 +115,22 @@ export function useProgressData(): UseProgressDataReturn {
       }
 
       // Build topic mastery data for all topics
+      // Mastery % = correct / total_questions_in_topic (not just attempted)
       const allTopicNames = Object.values(categoryTopics).flat();
       const topicMastery: TopicMasteryData[] = allTopicNames.map((topic) => {
         const agg = topicAggregation.get(topic);
+        const totalInTopic = topicCounts.get(topic) ?? 0;
         const correct = agg?.correct ?? 0;
         const incorrect = agg?.incorrect ?? 0;
-        const total = correct + incorrect;
+        const totalAttempted = correct + incorrect;
+        const attempted = totalAttempted > 0;
         return {
           topic,
           category: findCategory(topic),
           correctCount: correct,
           incorrectCount: incorrect,
-          correctPct: total > 0 ? Math.round((correct / total) * 100) : 0,
-          attempted: total > 0,
+          correctPct: totalInTopic > 0 ? Math.round((correct / totalInTopic) * 100) : 0,
+          attempted,
         };
       });
 
@@ -137,11 +142,16 @@ export function useProgressData(): UseProgressDataReturn {
       }));
 
       // Build score history
-      const scoreHistory: ScoreHistoryPoint[] = sessions.map((s) => {
+      const scoreHistory: ScoreHistoryPoint[] = sessions.map((s, index) => {
         const date = new Date(s.created_at);
         const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         return {
-          date: dateStr,
+          date: sessions.filter((_, i) => {
+            const d = new Date(_.created_at);
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) === dateStr;
+          }).length > 1
+            ? `${dateStr} #${index + 1}`
+            : dateStr,
           scorePct: s.total_questions > 0 ? Math.round((s.correct_answers / s.total_questions) * 100) : 0,
           totalQuestions: s.total_questions,
           correctAnswers: s.correct_answers,
@@ -187,7 +197,7 @@ export function useProgressData(): UseProgressDataReturn {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     fetchData();

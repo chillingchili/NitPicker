@@ -654,6 +654,23 @@ export function getQuestionTopicMap(): Map<string, string> {
   return map;
 }
 
+let topicQuestionCountsCache: Map<string, number> | null = null;
+
+export function getTopicQuestionCounts(): Map<string, number> {
+  if (topicQuestionCountsCache) {
+    return topicQuestionCountsCache;
+  }
+
+  const counts = new Map<string, number>();
+  for (const q of parsedVaultQuestions) {
+    const topic = q.subjectTopic;
+    counts.set(topic, (counts.get(topic) ?? 0) + 1);
+  }
+
+  topicQuestionCountsCache = counts;
+  return counts;
+}
+
 export function resolveQuestionTopic(questionId: string, topicMap: Map<string, string>): string {
   // Strip the trailing ::index to get the stable key
   const stableKey = questionId.replace(/::\d+$/, "");
