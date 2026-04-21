@@ -453,7 +453,10 @@ const parsedVaultQuestions: ParsedVaultQuestion[] = Object.entries(vaultMarkdown
   .map(([sourcePath, rawMarkdown]) => parseMarkdownQuestion(sourcePath, rawMarkdown))
   .filter((entry): entry is ParsedVaultQuestion => Boolean(entry));
 
-const buildQuestionPool = (settings: MockExamSettings): MockExamQuestion[] => {
+const buildQuestionPool = (
+  settings: MockExamSettings,
+  options?: { excludeQuestionIds?: Set<string> },
+): MockExamQuestion[] => {
   const selectedTopics = new Set(settings.selectedTopics);
   const selectedYears = new Set(settings.selectedYears);
 
@@ -462,6 +465,12 @@ const buildQuestionPool = (settings: MockExamSettings): MockExamQuestion[] => {
     .filter((question) => selectedTopics.has(question.subjectTopic))
     .filter((question) => selectedYears.has(question.sourceYear))
     .filter((question) => !requiresVisualContent(question.questionText, question.optionLines, question.questionImagePath, question.containsMarkdownTable, question.tableMarkdown))
+    .filter((question) => {
+      if (!options?.excludeQuestionIds) return true;
+      // Strip trailing ::index from question.id to get stable key (examCode::questionNumber)
+      const stableKey = question.id.split("::").slice(0, 2).join("::");
+      return !options.excludeQuestionIds.has(stableKey);
+    })
     .map<MockExamQuestion | null>((question, index) => {
       const options = extractOptionsFromLines(question.optionLines);
       if (options.length !== 4) {
