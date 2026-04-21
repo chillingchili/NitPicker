@@ -534,3 +534,31 @@ export const getAllAvailableYears = (): string[] => {
   );
   return Array.from(years).sort((a, b) => b.localeCompare(a, undefined, { numeric: true }));
 };
+
+let questionTopicMapCache: Map<string, string> | null = null;
+
+export function getQuestionTopicMap(): Map<string, string> {
+  if (questionTopicMapCache) {
+    return questionTopicMapCache;
+  }
+
+  const map = new Map<string, string>();
+  for (const q of parsedVaultQuestions) {
+    // Use examCode::questionNumber as the stable key.
+    // MockExamQuestion.id is "${examCode}::${questionNumber}::${index}" where
+    // index varies per session — callers strip the trailing ::index before lookup.
+    const stableKey = `${q.examCode}::${q.questionNumber}`;
+    if (!map.has(stableKey)) {
+      map.set(stableKey, q.subjectTopic);
+    }
+  }
+
+  questionTopicMapCache = map;
+  return map;
+}
+
+export function resolveQuestionTopic(questionId: string, topicMap: Map<string, string>): string {
+  // Strip the trailing ::index to get the stable key
+  const stableKey = questionId.replace(/::\d+$/, "");
+  return topicMap.get(stableKey) ?? "Unknown";
+}
