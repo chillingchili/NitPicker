@@ -81,7 +81,7 @@ export function useProgressData(): UseProgressDataReturn {
       const [sessionsResult, performanceResult] = await Promise.all([
         supabase
           .from('exam_sessions')
-          .select('created_at, score, total_questions, correct_answers')
+          .select('session_id, created_at, score, total_questions, correct_answers')
           .eq('user_id', userId)
           .order('created_at', { ascending: true }),
         supabase
@@ -97,8 +97,21 @@ export function useProgressData(): UseProgressDataReturn {
         throw new Error(performanceResult.error.message);
       }
 
-      const sessions = sessionsResult.data ?? [];
+      const rawSessions = sessionsResult.data ?? [];
       const performances = performanceResult.data ?? [];
+
+      // Keep only the latest row per session_id so historical partial saves do not inflate charts.
+      const latestSessionById = new Map<string, (typeof rawSessions)[number]>();
+      for (const row of rawSessions) {
+        const key = row.session_id ?? `${row.created_at}:${row.total_questions}:${row.correct_answers}`;
+        const existing = latestSessionById.get(key);
+        if (!existing || new Date(row.created_at).getTime() >= new Date(existing.created_at).getTime()) {
+          latestSessionById.set(key, row);
+        }
+      }
+      const sessions = [...latestSessionById.values()].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
 
       // Get question → topic mapping and total questions per topic
       const topicMap = getQuestionTopicMap();
