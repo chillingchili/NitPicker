@@ -42,6 +42,8 @@ export type MockExamSettings = {
   instantAnswers: boolean;
   selectedTopics: string[];
   selectedYears: string[];
+  excludeMastered?: boolean;
+  smartMode?: boolean;
 };
 
 export type MockExamOption = {
@@ -461,6 +463,14 @@ export type QuestionPerformance = {
   incorrectCount: number;
   confidence: number | null;
   lastAnsweredAt: Date;
+};
+
+export type TopicMastery = {
+  topic: string;
+  correctCount: number;
+  incorrectCount: number;
+  correctRatio: number; // correctCount / (correctCount + incorrectCount), 0 if no data
+  masteryLevel: 0 | 25 | 50 | 75 | 100; // 0 = no data, 25/50/75/100 = tiers
 };
 
 export type TopicSRStateUpdate = TopicSRState & { previousInterval: number };
